@@ -1,0 +1,34 @@
+{
+  "name": "scheduled-task",
+  "slug": "scheduled-task",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "uTools 定时任务插件 - 支持多种定时方式执行命令行任务",
+  "icon": "",
+  "logo": "logo.png",
+  "officialWebsite": "",
+  "options": {
+    "onlyOneInstance": true, 
+    "showInOptions": true
+  },
+  "features": [
+    {
+      "code": "定时任务",
+      "explain": "定时任务管理",
+      "cmds": [
+        "定时任务",
+        "scheduled",
+        "task"
+      ],
+      "icon": "",
+      "type": "window", 
+      "platform": [
+        "win32",
+        "darwin",
+        "linux"
+      ]
+    }
+  ],
+  "preload": "preload.js",
+  "main": "index.html"
+}

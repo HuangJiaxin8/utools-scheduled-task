@@ -1,0 +1,18 @@
+{
+  "name": "utools-scheduled-task",
+  "version": "1.0.0",
+  "description": "uTools 定时任务插件",
+  "main": "preload.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["utools", "scheduled", "task", "cron"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cron-parser": "^4.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0"
+  }
+}

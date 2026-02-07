@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>定时任务管理</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* 标题栏 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      color: #333;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    /* 按钮样式 */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #1890ff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #40a9ff;
+    }
+
+    .btn-danger {
+      background: #ff4d4f;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #ff7875;
+    }
+
+    .btn-default {
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      color: #333;
+    }
+
+    .btn-default:hover {
+      border-color: #40a9ff;
+      color: #40a9ff;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    /* 卡片 */
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    /* 表单样式 */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: #40a9ff;
+      box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    /* 任务列表 */
+    .task-list {
+      list-style: none;
+    }
+
+    .task-item {
+      background: #fafafa;
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .task-item.disabled {
+      opacity: 0.6;
+    }
+
+    .task-status {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .task-status.enabled {
+      background: #52c41a;
+    }
+
+    .task-status.disabled {
+      background: #d9d9d9;
+    }
+
+    .task-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .task-detail {
+      font-size: 12px;
+      color: #666;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* 历史列表 */
+    .history-list {
+      list-style: none;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .history-item:hover {
+      background: #fafafa;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .history-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .history-status.success {
+      background: #f6ffed;
+      color: #52c41a;
+      border: 1px solid #b7eb8f;
+    }
+
+    .history-status.failure {
+      background: #fff1f0;
+      color: #ff4d4f;
+      border: 1px solid #ffa39e;
+    }
+
+    .history-time {
+      color: #999;
+      font-size: 12px;
+    }
+
+    .history-command {
+      color: #666;
+      font-size: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* 详情输出 */
+    .output-section {
+      margin-top: 12px;
+    }
+
+    .output-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .output-content {
+      background: #f5f5f5;
+      border: 1px solid #f0f0f0;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .output-content.empty {
+      color: #999;
+    }
+
+    /* 空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    /* 开关 */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #1890ff;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* 标签 */
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-right: 4px;
+    }
+
+    .tag-interval {
+      background: #e6f7ff;
+      color: #1890ff;
+      border: 1px solid #91d5ff;
+    }
+
+    .tag-daily {
+      background: #f6ffed;
+      color: #52c41a;
+      border: 1px solid #b7eb8f;
+    }
+
+    .tag-cron {
+      background: #fff7e6;
+      color: #fa8c16;
+      border: 1px solid #ffd591;
+    }
+
+    /* 隐藏/显示 */
+    .hidden {
+      display: none;
+    }
+
+    /* Toast 通知 */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      font-size: 14px;
+      z-index: 10000;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    }
+
+    .toast-show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .toast-success {
+      background: #f6ffed;
+      border: 1px solid #b7eb8f;
+      color: #52c41a;
+    }
+
+    .toast-error {
+      background: #fff1f0;
+      border: 1px solid #ffa39e;
+      color: #ff4d4f;
+    }
+
+    .toast-info {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      color: #1890ff;
+    }
+
+    .toast-icon {
+      font-weight: bold;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 标题栏 -->
+    <div class="header">
+      <h1>⏰ 定时任务管理</h1>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="showAddTaskModal()">新增任务</button>
+      </div>
+    </div>
+
+    <!-- 任务列表 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">任务列表</div>
+        <div>
+          <span id="taskCount" style="color: #999; font-size: 12px;">0 个任务</span>
+        </div>
+      </div>
+      <ul id="taskList" class="task-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <p>暂无任务，点击上方"新增任务"按钮添加</p>
+        </div>
+      </ul>
+    </div>
+
+    <!-- 执行历史 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">执行历史</div>
+        <button class="btn btn-default btn-sm" onclick="clearHistory()">清空历史</button>
+      </div>
+      <ul id="historyList" class="history-list">
+        <div class="empty-state">
+          <div class="empty-state-icon">📜</div>
+          <p>暂无执行历史</p>
+        </div>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 新增/编辑任务 Modal -->
+  <div id="taskModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="taskModalTitle">新增任务</div>
+        <button class="modal-close" onclick="closeTaskModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="taskForm">
+          <input type="hidden" id="taskId">
+
+          <div class="form-group">
+            <label class="form-label">任务名称（可选）</label>
+            <input type="text" id="taskName" class="form-input" placeholder="便于识别的名称">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">定时类型 *</label>
+            <select id="taskType" class="form-select" onchange="onTypeChange()">
+              <option value="interval">固定间隔</option>
+              <option value="daily">每天固定时间</option>
+              <option value="cron">自定义 Cron</option>
+            </select>
+          </div>
+
+          <div id="intervalOptions" class="form-group">
+            <label class="form-label">执行间隔</label>
+            <select id="intervalValue" class="form-select">
+              <option value="1m">1 分钟</option>
+              <option value="15m">15 分钟</option>
+              <option value="30m">30 分钟</option>
+              <option value="1h">1 小时</option>
+            </select>
+          </div>
+
+          <div id="dailyOptions" class="form-group hidden">
+            <label class="form-label">执行时间</label>
+            <input type="time" id="dailyTime" class="form-input" value="09:00">
+          </div>
+
+          <div id="cronOptions" class="form-group hidden">
+            <label class="form-label">Cron 表达式</label>
+            <input type="text" id="cronExpression" class="form-input" placeholder="0 9 * * *">
+            <small style="color: #999;">格式: 分 时 日 月 周 (例: 0 9 * * * 表示每天9点)</small>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">执行命令 *</label>
+            <textarea id="taskCommand" class="form-textarea" placeholder="输入要执行的命令...&#10;Windows: dir C:\&#10;Linux/Mac: ls -la"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <label class="switch">
+                <input type="checkbox" id="taskEnabled" checked>
+                <span class="slider"></span>
+              </label>
+              启用此任务
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeTaskModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveTask()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史详情 Modal -->
+  <div id="historyModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">执行详情</div>
+        <button class="modal-close" onclick="closeHistoryModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="historyModalBody">
+        <!-- 动态填充 -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-default" onclick="closeHistoryModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
