@@ -560,18 +560,65 @@ window.ScheduledTaskAPI = {
   isMacOS: () => utools.isMacOS(),
 };
 
+// ==================== 后台运行状态管理 ====================
+
+const BG_STATE_KEY = 'scheduled_tasks_bg_state';
+
+/**
+ * 保存后台运行状态
+ */
+async function saveBgState(state) {
+  try {
+    await utools.dbStorage.setItem(BG_STATE_KEY, {
+      ...state,
+      timestamp: Date.now(),
+    });
+  } catch (error) {
+    console.error('[ScheduledTask] Failed to save bg state:', error);
+  }
+}
+
+/**
+ * 获取后台运行状态
+ */
+async function getBgState() {
+  try {
+    return await utools.dbStorage.getItem(BG_STATE_KEY);
+  } catch (error) {
+    console.error('[ScheduledTask] Failed to get bg state:', error);
+    return null;
+  }
+}
+
 // ==================== 生命周期钩子 ====================
 
 // uTools 插件进入时启动调度器
-utools.onPluginEnter(() => {
-  console.log('[ScheduledTask] Plugin entered');
-  scheduler.start();
+utools.onPluginEnter(async ({ code }) => {
+  console.log('[ScheduledTask] Plugin entered, feature code:', code);
+
+  // 如果是后台服务启动，或者调度器还未运行，则启动
+  if (!scheduler.running) {
+    await scheduler.start();
+    await saveBgState({ running: true, startedAt: Date.now() });
+    console.log('[ScheduledTask] Scheduler started in background');
+  } else {
+    console.log('[ScheduledTask] Scheduler already running');
+  }
 });
 
-// uTools 插件退出时停止调度器
-utools.onPluginOut(() => {
-  console.log('[ScheduledTask] Plugin exiting');
-  scheduler.stop();
+// uTools 插件退出时不再停止调度器，让它在后台继续运行
+utools.onPluginOut(async () => {
+  console.log('[ScheduledTask] Plugin exiting, keeping scheduler running in background');
+
+  // 保存状态，标记调度器仍在后台运行
+  await saveBgState({
+    running: scheduler.running,
+    taskCount: scheduler.timers.size,
+    backgroundMode: true,
+  });
+
+  // 不再调用 scheduler.stop()，让定时任务在后台继续执行
+  // scheduler.stop(); // <-- 已移除
 });
 
 console.log('[ScheduledTask] Preload script loaded');

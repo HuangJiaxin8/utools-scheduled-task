@@ -21,7 +21,7 @@
         "task"
       ],
       "icon": "",
-      "type": "window", 
+      "type": "window",
       "platform": [
         "win32",
         "darwin",
