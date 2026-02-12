@@ -56,6 +56,55 @@ function getTagClass(type) {
   return `tag-${type}`;
 }
 
+// ==================== Cron 表达式验证 ====================
+
+/**
+ * 验证 Cron 表达式格式
+ * 标准 5 段格式：分 时 日 月 周
+ * 例如：28 21 * * * (每天 21:28)
+ */
+function validateCronExpression(expression) {
+  if (!expression || !expression.trim()) {
+    return { valid: false, error: 'Cron 表达式不能为空' };
+  }
+
+  // 基本格式检查：应该是 5 个字段，用空格分隔
+  const parts = expression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return { valid: false, error: `Cron 表达式应为 5 个字段（分 时 日 月 周），当前有 ${parts.length} 个字段` };
+  }
+
+  // 验证每个字段
+  const validators = [
+    { name: '分钟', range: [0, 59], patterns: [/^\d+$/, /^\*$/, /^\*\/\d+$/, /^\d+-\d+$/, /^[\d\*,\-\/]+$/] },
+    { name: '小时', range: [0, 23], patterns: [/^\d+$/, /^\*$/, /^\*\/\d+$/, /^\d+-\d+$/, /^[\d\*,\-\/]+$/] },
+    { name: '日期', range: [1, 31], patterns: [/^\d+$/, /^\*$/, /^\*\/\d+$/, /^\d+-\d+$/, /^[\d\*,\-\/?]+$/] },
+    { name: '月份', range: [1, 12], patterns: [/^\d+$/, /^\*$/, /^\*\/\d+$/, /^\d+-\d+$/, /^[\d\*,\-\/]+$/] },
+    { name: '星期', range: [0, 7], patterns: [/^\d+$/, /^\*$/, /^\*\/\d+$/, /^\d+-\d+$/, /^[\d\*,\-?L]+$/] },
+  ];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const validator = validators[i];
+
+    // 简单检查：是否包含有效字符
+    const validChars = /^[0-9\*\-\,\/\?L]+$/;
+    if (!validChars.test(part)) {
+      return { valid: false, error: `${validator.name}字段包含无效字符: ${part}` };
+    }
+
+    // 如果是纯数字，检查范围
+    if (/^\d+$/.test(part)) {
+      const num = parseInt(part, 10);
+      if (num < validator.range[0] || num > validator.range[1]) {
+        return { valid: false, error: `${validator.name}字段超出范围 (${validator.range[0]}-${validator.range[1]}): ${part}` };
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
 // ==================== 数据加载 ====================
 
 async function loadData() {
@@ -231,6 +280,14 @@ async function saveTask() {
       showError('请输入 Cron 表达式');
       return;
     }
+
+    // 验证 cron 表达式格式
+    const validation = validateCronExpression(cronExpression);
+    if (!validation.valid) {
+      showError(`Cron 表达式格式错误: ${validation.error}`);
+      return;
+    }
+
     taskData.cronExpression = cronExpression;
   }
 

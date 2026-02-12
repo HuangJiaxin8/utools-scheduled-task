@@ -286,20 +286,76 @@ class Scheduler {
    * 启动调度器
    */
   async start() {
-    if (this.running) return;
+    if (this.running) {
+      console.log('[Scheduler] Already running, skipping start');
+      return;
+    }
 
     this.running = true;
     console.log('[Scheduler] Starting scheduler...');
 
+    // 先检查是否有错过的任务需要补偿执行
+    await this.checkMissedTasks();
+
     // 恢复所有启用的任务
     const tasks = await Storage.getTasks();
+    console.log(`[Scheduler] Found ${tasks.length} tasks in storage`);
+
     for (const task of tasks) {
+      console.log(`[Scheduler] Processing task: ${task.id}, name: ${task.name}, enabled: ${task.enabled}, type: ${task.type}`);
       if (task.enabled) {
         this.scheduleTask(task);
+      } else {
+        console.log(`[Scheduler] Skipping disabled task: ${task.id}`);
       }
     }
 
     console.log(`[Scheduler] Started, ${this.timers.size} tasks scheduled`);
+  }
+
+  /**
+   * 检查并补偿执行错过的任务
+   * 当插件从挂起状态恢复时调用
+   */
+  async checkMissedTasks() {
+    console.log('[Scheduler] Checking for missed tasks...');
+    const tasks = await Storage.getTasks();
+    const now = Date.now();
+    const missedTasks = [];
+
+    for (const task of tasks) {
+      if (!task.enabled) continue;
+
+      // 检查是否有保存的"下次执行时间"
+      if (task.nextExecutionAt && task.nextExecutionAt < now) {
+        // 计算错过了多长时间（毫秒）
+        const missedBy = now - task.nextExecutionAt;
+
+        // 如果错过时间在合理范围内（比如2小时内），则补偿执行
+        // 避免错过太久（比如几天前）的任务也被执行
+        const MAX_MISSED_TIME = 2 * 60 * 60 * 1000; // 2小时
+
+        if (missedBy <= MAX_MISSED_TIME) {
+          console.log(`[Scheduler] Found missed task: ${task.name}, missed by: ${Math.round(missedBy / 1000 / 60)} minutes`);
+          missedTasks.push(task);
+        } else {
+          console.log(`[Scheduler] Skipping old missed task: ${task.name}, missed by: ${Math.round(missedBy / 1000 / 60 / 60)} hours`);
+        }
+      }
+    }
+
+    // 执行错过的任务
+    for (const task of missedTasks) {
+      console.log(`[Scheduler] Compensating missed task: ${task.name}`);
+      await this.executeTask(task);
+
+      // 重新调度该任务
+      this.scheduleTask(task);
+    }
+
+    if (missedTasks.length > 0) {
+      console.log(`[Scheduler] Compensated ${missedTasks.length} missed tasks`);
+    }
   }
 
   /**
@@ -324,13 +380,19 @@ class Scheduler {
    * 调度单个任务
    */
   scheduleTask(task) {
+    console.log(`[Scheduler] Scheduling task: ${task.id}, type: ${task.type}, enabled: ${task.enabled}`);
+
     // 如果已有定时器，先清除
     if (this.timers.has(task.id)) {
       clearTimeout(this.timers.get(task.id));
       this.timers.delete(task.id);
+      console.log(`[Scheduler] Cleared existing timer for task: ${task.id}`);
     }
 
-    if (!task.enabled) return;
+    if (!task.enabled) {
+      console.log(`[Scheduler] Task ${task.id} is disabled, skipping`);
+      return;
+    }
 
     let delay;
     let timer;
@@ -338,6 +400,7 @@ class Scheduler {
     switch (task.type) {
       case 'interval':
         delay = this.calculateIntervalDelay(task.intervalValue);
+        console.log(`[Scheduler] Interval task ${task.id}: ${task.intervalValue}, delay: ${delay}ms`);
         // 使用递归 setTimeout 实现间隔执行
         timer = setTimeout(() => {
           this.executeTask(task);
@@ -350,6 +413,7 @@ class Scheduler {
 
       case 'daily':
         delay = this.calculateDailyDelay(task.dailyTime);
+        console.log(`[Scheduler] Daily task ${task.id}: ${task.dailyTime}, delay: ${delay}ms`);
         timer = setTimeout(() => {
           this.executeTask(task);
           // 执行完成后调度明天
@@ -360,11 +424,13 @@ class Scheduler {
         break;
 
       case 'cron':
+        console.log(`[Scheduler] Cron task ${task.id}: "${task.cronExpression}"`);
         delay = this.calculateCronDelay(task.cronExpression);
         if (delay === null) {
-          console.error(`[Scheduler] Invalid cron expression: ${task.cronExpression}`);
+          console.error(`[Scheduler] Invalid cron expression: ${task.cronExpression}, skipping task: ${task.id}`);
           return;
         }
+        console.log(`[Scheduler] Cron task ${task.id} delay: ${delay}ms (${(delay / 1000 / 60).toFixed(1)} minutes)`);
         timer = setTimeout(() => {
           this.executeTask(task);
           // 执行完成后重新计算下次执行时间
@@ -373,6 +439,10 @@ class Scheduler {
           }
         }, delay);
         break;
+
+      default:
+        console.error(`[Scheduler] Unknown task type: ${task.type}`);
+        return;
     }
 
     if (timer) {
@@ -380,7 +450,11 @@ class Scheduler {
 
       // 记录下次执行时间
       const nextExecutionAt = Date.now() + delay;
+      const nextTime = new Date(nextExecutionAt);
+      console.log(`[Scheduler] Task ${task.id} next execution: ${nextTime.toLocaleString('zh-CN')}`);
       Storage.updateTask(task.id, { nextExecutionAt });
+    } else {
+      console.error(`[Scheduler] Failed to create timer for task: ${task.id}`);
     }
   }
 
